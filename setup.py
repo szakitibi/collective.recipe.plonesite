@@ -2,7 +2,6 @@
 """
 This module contains the tool of collective.recipe.plonesite
 """
-from setuptools import find_packages
 from setuptools import setup
 
 import os
@@ -58,8 +57,6 @@ setup(
     author_email='info@sixfeetup.com',
     url='http://sixfeetup.com',
     license='ZPL',
-    packages=find_packages(exclude=['ez_setup']),
-    namespace_packages=['collective', 'collective.recipe'],
     include_package_data=True,
     zip_safe=False,
     install_requires=[
