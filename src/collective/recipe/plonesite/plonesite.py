@@ -1,58 +1,26 @@
+import argparse
 import base64
 import logging
-import os
 from bisect import bisect
 from datetime import datetime
-from optparse import OptionParser
-
-import pkg_resources
-from pkg_resources import get_distribution
-from pkg_resources import parse_version
+from pathlib import Path
 
 import transaction
 import zc.buildout
 from AccessControl.SecurityManagement import newSecurityManager
 from AccessControl.SecurityManagement import noSecurityManager
-from six import PY3
+from Products.CMFPlone.factory import _DEFAULT_PROFILE
+from Products.CMFPlone.factory import addPloneSite
 from Testing import makerequest
 from zExceptions.unauthorized import Unauthorized
+from zope.component.hooks import setSite
 
-
-if pkg_resources.parse_version(
-    pkg_resources.get_distribution("Products.CMFPlone").version
-) >= pkg_resources.parse_version("6.0a1.dev0"):
-    PLONE6 = True
-else:
-    PLONE6 = False
-
-try:
-    # Plone < 4.3
-    from zope.app.component.hooks import setSite
-except ImportError:
-    # Plone >= 4.3
-    from zope.component.hooks import setSite  # NOQA
-
-pre_plone3 = False
-try:
-    from plone.app.linkintegrity.exceptions import \
-        LinkIntegrityNotificationException
-except ImportError:
-    # we are using a release prior to 3.x
-    class LinkIntegrityNotificationException(Exception):
-        pass
-    pre_plone3 = True
 
 try:
     from collective.upgrade import run as upgrade
 except ImportError:
     upgrade = None
 
-HAVE_DISTRIBUTIONS = True
-try:
-    from Products.CMFPlone.factory import _DEFAULT_PROFILE
-    from Products.CMFPlone.factory import addPloneSite
-except ImportError:
-    HAVE_DISTRIBUTIONS = False
 
 logger = logging.getLogger('collective.recipe.plonesite')
 
@@ -62,46 +30,21 @@ def getProductsWithSpace(opts):
     return [x.replace(',', '') for x in opts]
 
 
-def has_setup_content():
-    version = parse_version(get_distribution('Products.CMFPlone').version)
-    return version >= parse_version('4.1')
-
-
 def runProfiles(plone, profiles):
     logger.info("Running profiles: %s", profiles)
     stool = plone.portal_setup
     for profile in profiles:
         if not profile.startswith('profile-'):
-            profile = "profile-%s" % profile
-        if pre_plone3:
-            stool.setImportContext(profile)
-            continue
+            profile = f"profile-{profile}"
         try:
-            stool.runAllImportStepsFromProfile(profile,
-                                               dependency_strategy='reapply')
+            stool.runAllImportStepsFromProfile(
+                profile, dependency_strategy='reapply'
+            )
         except BaseException:
             stool.runAllImportStepsFromProfile(profile)
 
 
-def quickinstall(plone, products):
-    logger.warn(
-        "Installing products by name is no longer supported in Plone 6. "
-        "Use profiles instead.")
-    qit = plone.portal_quickinstaller
-    not_installed_ids = [
-        x['id'] for x in qit.listInstallableProducts(skipInstalled=1)]
-    installed_ids = [x['id'] for x in qit.listInstalledProducts()]
-    installed_products = list(filter(installed_ids.count, products))
-    not_installed = list(filter(not_installed_ids.count, products))
-    if installed_products:
-        qit.reinstallProducts(installed_products)
-    if not_installed_ids:
-        qit.installProducts(not_installed)
-
-
-def create(
-        container, site_id, products_initial, profiles_initial,
-        site_replace, default_language):
+def create(container, site_id, site_replace, default_language):
     oids = container.objectIds()
     if site_id in oids:
         if site_replace:
@@ -109,69 +52,32 @@ def create(
             container._delObject(site_id, suppress_events=True)
             transaction.commit()
             logger.warning("Removed existing Plone Site")
-            oids = container.objectIds()
         else:
             logger.warning(
-                "A Plone Site already exists and will not be replaced")
-            plone = getattr(container, site_id)
-            created = False
-            return (plone, created)
-    # actually add in Plone
-    if site_id not in oids:
-        created = True
-        if has_setup_content():
-            if HAVE_DISTRIBUTIONS:
-                payload = {
-                    "title": "Plone",
-                    "profile_id": _DEFAULT_PROFILE,
-                    "distribution_name": "classic",
-                    "setup_content": False,
-                    "default_language": default_language,
-                    "portal_timezone": "UTC",
-                }
-                addPloneSite(container, site_id, **payload)
-            else:
-                # we have to simulate the zmi admin screen here - at
-                # least provide:
-                # extension_ids
-                # setup_content (plone default is currently 'true')
-                container.REQUEST.form.update({
-                    'form.submitted': True,
-                    'site_id': site_id,
-                    'setup_content': False,
-                    'default_language': default_language})
-                form = container.restrictedTraverse('@@plone-addsite')
-                # Skip the template rendering
-                form.index = lambda: None
-                form()
-        else:
-            factory = container.manage_addProduct['CMFPlone']
-            factory.addPloneSite(site_id, create_userfolder=1)
-        # commit the new site to the database
-        transaction.commit()
-        logger.info("Added Plone Site")
+                "A Plone Site already exists and will not be replaced"
+            )
+            return getattr(container, site_id), False
+
+    addPloneSite(
+        container,
+        site_id,
+        title="Plone",
+        profile_id=_DEFAULT_PROFILE,
+        distribution_name="classic",
+        setup_content=False,
+        default_language=default_language,
+        portal_timezone="UTC",
+    )
+    transaction.commit()
+    logger.info("Added Plone Site")
+
     plone = getattr(container, site_id)
-    setDefaultLanguageOnPortalLanguages(plone, default_language)
-    # set the site so that the component architecture will work
-    # properly
-    if not pre_plone3:
-        setSite(plone)
-    return (plone, created)
-
-
-def setDefaultLanguageOnPortalLanguages(plone, default_language):
-    # Plone factory does not set default_language on portal_languages (until
-    # 4.1)
-    if get_distribution('Products.CMFPlone').version < '4.1':
-        portal_languages = plone.portal_languages
-        portal_languages.setDefaultLanguage(default_language)
-        supported = portal_languages.getSupportedLanguages()
-        portal_languages.removeSupportedLanguages(supported)
-        portal_languages.addSupportedLanguage(default_language)
+    setSite(plone)
+    return plone, True
 
 
 def main(app, parser):
-    (options, args) = parser.parse_args()
+    options = parser.parse_args()
     site_id = options.site_id
     site_replace = options.site_replace
     admin_user = options.admin_user
@@ -181,10 +87,8 @@ def main(app, parser):
     container_path = options.container_path
     default_language = options.default_language
     host = options.vhm_host
-    use_vhm = options.use_vhm
-    use_vhm = use_vhm == 'True'
-    add_mountpoint = options.add_mountpoint
-    add_mountpoint = add_mountpoint == 'True'
+    use_vhm = options.use_vhm == 'True'
+    add_mountpoint = options.add_mountpoint == 'True'
     protocol = options.vhm_protocol
     port = options.vhm_port
     log_level = options.log_level
@@ -193,8 +97,9 @@ def main(app, parser):
     try:
         log_level = int(log_level)
     except ValueError:
-        msg = 'The configured log-level is not valid: %s' % log_level
-        raise zc.buildout.UserError(msg)
+        raise zc.buildout.UserError(
+            f'The configured log-level is not valid: {log_level}'
+        )
     current_log_levels = [
         logging.NOTSET,
         logging.DEBUG,
@@ -217,22 +122,18 @@ def main(app, parser):
     for handler in root_logger.handlers:
         handler.setLevel(log_level)
 
-    # normalize our product/profile lists
-    products_initial = getProductsWithSpace(options.products_initial)
-    products = getProductsWithSpace(options.products)
+    # normalize our profile lists
     profiles_initial = getProductsWithSpace(options.profiles_initial)
     profiles = getProductsWithSpace(options.profiles)
 
     if upgrade is not None:
         if options.upgrade_profiles and options.upgrade_all_profiles:
             raise zc.buildout.UserError(
-                'Using upgrade-profiles conflicts with upgrade-all-profiles')
+                'Using upgrade-profiles conflicts with upgrade-all-profiles'
+            )
 
     if host and port and not use_vhm:
-        environ = {
-            'SERVER_NAME': host,
-            'SERVER_PORT': port,
-        }
+        environ = {'SERVER_NAME': host, 'SERVER_PORT': port}
         app = makerequest.makerequest(app, environ=environ)
     else:
         app = makerequest.makerequest(app)
@@ -263,92 +164,79 @@ def main(app, parser):
         if add_mountpoint:
             try:
                 app.manage_addProduct['ZODBMountPoint'].manage_addMounts(
-                    paths=[container_path], create_mount_points=1)
-            except Exception as e:
-                msg = (
-                    'An error ocurred while trying to add ZODB '
-                    'Mount Point %s: %s'
+                    paths=[container_path], create_mount_points=1
                 )
-                raise zc.buildout.UserError(msg % (container_path, str(e)))
+            except Exception as e:
+                raise zc.buildout.UserError(
+                    f'An error ocurred while trying to add ZODB '
+                    f'Mount Point {container_path}: {e}'
+                )
         else:
-            msg = (
-                'No ZODB Mount Point at container-path %s and add-mountpoint '
-                'not specified.'
+            raise zc.buildout.UserError(
+                f'No ZODB Mount Point at container-path {container_path} '
+                f'and add-mountpoint not specified.'
             )
-            raise zc.buildout.UserError(msg % container_path)
 
     container = app.unrestrictedTraverse(container_path)
     # create the plone site if it doesn't exist
-    portal, created = create(container, site_id, products_initial,
-                             profiles_initial, site_replace, default_language)
+    portal, created = create(
+        container, site_id, site_replace, default_language
+    )
     # set the site so that the component architecture will work
     # properly
-    if not pre_plone3:
-        setSite(portal)
+    setSite(portal)
 
     if use_vhm:
         logger.info("******* UPDATING VHM INFORMATION ********")
-        vhm_string = "/VirtualHostBase/{}/{}:{}/{}/VirtualHostRoot".format(
-            protocol, host, port, site_id)
+        vhm_string = (
+            f"/VirtualHostBase/{protocol}/{host}:{port}"
+            f"/{site_id}/VirtualHostRoot"
+        )
         portal.REQUEST['PARENTS'] = [app]
         try:
             portal.REQUEST._auth = b'Basic ' + base64.b64encode(
-                (f'{admin_user}:{admin_password}').encode())
+                f'{admin_user}:{admin_password}'.encode()
+            )
             traverse = portal.REQUEST.traverse
             traverse(vhm_string)
             newSecurityManager(None, user)
             logger.info("******* SET VHM INFO TO %s *******", vhm_string)
         except Unauthorized:
             logger.info(
-                "******* UNABLE TO SET VHM, this happens when the root object "
-                "in the site is not accessible by Anonymous. If you provide "
-                "the admin-password in the plonesite part, this "
-                "error can be avoided. Otherwise, you need to publish that "
-                "object. *******"
+                "******* UNABLE TO SET VHM, this happens when the root "
+                "object in the site is not accessible by Anonymous. If "
+                "you provide the admin-password in the plonesite part, "
+                "this error can be avoided. Otherwise, you need to "
+                "publish that object. *******"
             )
 
     if portal and created:
-        if products_initial and PLONE6:
-            raise zc.buildout.UserError(
-                'Installing (initial) products via quickinstall is '
-                'deprecated in Plone 6. Use profiles instead.')
-        if products_initial and not PLONE6:
-            quickinstall(portal, products_initial)
         runProfiles(portal, profiles_initial)
         logger.info("Finished")
 
     def runExtras(portal, script_path):
-        print(PY3)
-        if os.path.exists(script_path):
-            exec(
-                compile(
-                    open(
-                        script_path,
-                        "rb").read(),
-                    script_path,
-                    'exec'))
-        else:
-            msg = 'The path to the extras script does not exist: %s'
-            raise zc.buildout.UserError(msg % script_path)
+        script = Path(script_path)
+        if not script.exists():
+            raise zc.buildout.UserError(
+                f'The path to the extras script does not exist: {script_path}'
+            )
+        exec(compile(script.read_bytes(), str(script), 'exec'))
 
     for pre_extra in pre_extras:
         runExtras(portal, pre_extra)
 
     if upgrade is not None and (
-            options.upgrade_portal or
-            options.upgrade_profiles or options.upgrade_all_profiles):
+        options.upgrade_portal
+        or options.upgrade_profiles
+        or options.upgrade_all_profiles
+    ):
         runner = portal.restrictedTraverse('@@collective.upgrade.form')
         runner.upgrade(
             upgrade_portal=options.upgrade_portal,
             upgrade_profiles=options.upgrade_profiles,
-            upgrade_all_profiles=options.upgrade_all_profiles)
+            upgrade_all_profiles=options.upgrade_all_profiles,
+        )
 
-    if products and PLONE6:
-        raise zc.buildout.UserError(
-            'Installing products via quickinstall is deprecated in '
-            'Plone 6. Use profiles instead.')
-    if products and not PLONE6:
-        quickinstall(portal, products)
     if profiles:
         runProfiles(portal, profiles)
 
@@ -362,58 +250,68 @@ def main(app, parser):
 
 if __name__ == '__main__':
     now_str = datetime.now().strftime('%Y-%m-%d-%H%M%S')
-    parser = OptionParser()
-    parser.add_option("-s", "--site-id",
-                      dest="site_id", default="Plone-%s" % now_str)
-    parser.add_option("-c", "--container-path",
-                      dest="container_path", default="/")
-    parser.add_option("-r", "--site-replace",
-                      dest="site_replace", action="store_true", default=False)
-    parser.add_option("-l", "--default-language",
-                      dest="default_language", default="en")
-    parser.add_option("-u", "--admin-user",
-                      dest="admin_user", default="admin")
-    parser.add_option("-P", "--admin-password",
-                      dest="admin_password", default="")
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-s", "--site-id",
+        dest="site_id", default=f"Plone-{now_str}",
+    )
+    parser.add_argument(
+        "-c", "--container-path", dest="container_path", default="/",
+    )
+    parser.add_argument(
+        "-r", "--site-replace",
+        dest="site_replace", action="store_true", default=False,
+    )
+    parser.add_argument(
+        "-l", "--default-language", dest="default_language", default="en",
+    )
+    parser.add_argument(
+        "-u", "--admin-user", dest="admin_user", default="admin",
+    )
+    parser.add_argument(
+        "-P", "--admin-password", dest="admin_password", default="",
+    )
 
-    parser.add_option("-p", "--products-initial",
-                      dest="products_initial", action="append", default=[])
-    parser.add_option("-a", "--products",
-                      dest="products", action="append", default=[])
-    parser.add_option("-g", "--profiles-initial",
-                      dest="profiles_initial", action="append", default=[])
-    parser.add_option("-x", "--profiles",
-                      dest="profiles", action="append", default=[])
+    parser.add_argument(
+        "-g", "--profiles-initial",
+        dest="profiles_initial", action="append", default=[],
+    )
+    parser.add_argument(
+        "-x", "--profiles", dest="profiles", action="append", default=[],
+    )
 
     if upgrade is not None:
-        parser.add_option(
+        parser.add_argument(
             '-U', '--upgrade-portal', action="store_true",
-            help='Run all upgrade steps for the core Plone baseline profile.')
-        parser.add_option(
+            help='Run all upgrade steps for the core Plone baseline profile.',
+        )
+        parser.add_argument(
             '-A', '--upgrade-all-profiles', action="store_true",
-            help='Run all upgrade steps for all installed extension profiles.')
-        parser.add_option(
+            help='Run all upgrade steps for all installed extension profiles.',
+        )
+        parser.add_argument(
             '-G', '--upgrade-profile',
             action='append', dest='upgrade_profiles',
             help='Run all upgrades for the given profile.  '
-            'May be given multiple times to upgrade multiple profiles.')
+                 'May be given multiple times to upgrade multiple profiles.',
+        )
 
-    parser.add_option("-e", "--post-extras",
-                      dest="post_extras", action="append", default=[])
-    parser.add_option("-b", "--pre-extras",
-                      dest="pre_extras", action="append", default=[])
+    parser.add_argument(
+        "-e", "--post-extras",
+        dest="post_extras", action="append", default=[],
+    )
+    parser.add_argument(
+        "-b", "--pre-extras",
+        dest="pre_extras", action="append", default=[],
+    )
 
-    parser.add_option("--use-vhm",
-                      dest="use_vhm", default='True')
-    parser.add_option("--add-mountpoint",
-                      dest="add_mountpoint", default='False')
-    parser.add_option("--host",
-                      dest="vhm_host", default='')
-    parser.add_option("--protocol",
-                      dest="vhm_protocol", default='http')
-    parser.add_option("--port",
-                      dest="vhm_port", default='80')
+    parser.add_argument("--use-vhm", dest="use_vhm", default='True')
+    parser.add_argument(
+        "--add-mountpoint", dest="add_mountpoint", default='False',
+    )
+    parser.add_argument("--host", dest="vhm_host", default='')
+    parser.add_argument("--protocol", dest="vhm_protocol", default='http')
+    parser.add_argument("--port", dest="vhm_port", default='80')
 
-    parser.add_option("--log-level",
-                      dest="log_level", default='20')
-    main(app, parser)  # NOQA
+    parser.add_argument("--log-level", dest="log_level", default='20')
+    main(app, parser)  # noqa

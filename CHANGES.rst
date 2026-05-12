@@ -1,8 +1,11 @@
-1.12.1 (unreleased)
-===================
+2.0.0 (unreleased)                                                                                             
+==================                                                                                             
+- Support only Python 3.10+ and Plone 6.1+ with plone.distribution.
+  [pbauer, szakitibi]
 
-- Add compatability with Plone 6.1 and 6.2 with plone.distribution.
-  [pbauer]
+- Removed the ``products`` and ``products-initial`` options.                                   
+- Modernized codebase: move into ``src/``, PEP 420 native namespace, configure with ``zope.meta``.
+  [szakitibi]
 
 1.12.0 (2021-03-06)
 ===================

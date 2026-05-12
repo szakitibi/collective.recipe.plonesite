@@ -52,58 +52,39 @@ This recipe honors the ``log-level`` buildout-level config value, and the
 level. This allows you to get more logging output when running the part,
 but have less verbosity when the site is actually running.
 
-Install Products
+Install Profiles
 ----------------
-
-DEPRECATION NOTICE: Installing products in Plone 6 is deprecated since it no longer has Quickinstaller: use profiles instead.
-
-products-initial
-    A list of products to quick install just after initial site
-    creation. See above for information about the product name
-    format [2]_.
 
 profiles-initial
     A list of GenericSetup profiles to run just after initial site
-    creation. See above for information on the expected profile id
+    creation. See below for information on the expected profile id
     format [1]_.
-
-products
-    A list of products to quick install each time buildout is run. See
-    above for information about the product name format [2]_.
 
 profiles
     A list of GenericSetup profiles to run each time buildout is run.
-    See above for information on the expected profile id format [1]_.
+    See below for information on the expected profile id format [1]_.
 
 .. [1] Profiles have the following format: ``<package_name>:<profile>``
        (e.g. ``my.package:default``). The profile can also be prepended
        with the ``profile-`` if you so choose
        (e.g. ``profile-my.package:default``).
 
-.. [2] The product name is typically **not** the package name such as
-       ``Products.MyProduct``, but just the product name ``MyProduct``.
-       Quickest way to find out the name that is expected is to
-       'inspect' the Quickinstaller page and see what value it is
-       passing in.
-
 Run Scripts
 -----------
 
 pre-extras
     An absolute path to a file with python code that will be evaluated
-    before running Quickinstaller and GenericSetup profiles. Multiple
-    files can be given. Two variables will be available to you. The app
-    variable is the Zope root. The portal variable is the plone site as
-    defined by the site-id option. NOTE: file path cannot contain
-    spaces. Default: not set
+    before running GenericSetup profiles. Multiple files can be given.
+    Two variables will be available to you. The app variable is the Zope
+    root. The portal variable is the plone site as defined by the
+    site-id option. NOTE: file path cannot contain spaces. Default: not set
 
 post-extras
     An absolute path to a file with python code that will be evaluated
-    after running Quickinstaller and GenericSetup profiles. Multiple
-    files can be given. Two variables will be available to you. The app
-    variable is the Zope root. The portal variable is the plone site as
-    defined by the site-id option. NOTE: file path cannot contain
-    spaces. Default: not set
+    after running GenericSetup profiles. Multiple files can be given.
+    Two variables will be available to you. The app variable is the Zope
+    root. The portal variable is the plone site as defined by the
+    site-id option. NOTE: file path cannot contain spaces. Default: not set
 
 before-install
     A system command to execute before installing Plone. You could use
@@ -220,17 +201,18 @@ Here is an example buildout.cfg with the plonesite recipe::
     port = 443
 
 
-Example with Plone 4 content enabled
-====================================
+Example with default content
+============================
 
-Here is another example buildout.cfg with the plone4site recipe::
+Here is another example buildout.cfg that creates default Plone content
+(News, Events, the front page, etc.) on initial site creation::
 
     [buildout]
     parts =
         ...
-        plone4site
+        plonesite-with-content
 
-    [plone4site]
+    [plonesite-with-content]
     recipe = collective.recipe.plonesite
     site-id = test
     instance = instance
