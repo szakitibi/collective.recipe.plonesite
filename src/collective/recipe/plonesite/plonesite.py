@@ -14,7 +14,6 @@ import zc.buildout
 from AccessControl.SecurityManagement import newSecurityManager
 from AccessControl.SecurityManagement import noSecurityManager
 from six import PY3
-from six import exec_
 from Testing import makerequest
 from zExceptions.unauthorized import Unauthorized
 
@@ -50,7 +49,6 @@ except ImportError:
 
 HAVE_DISTRIBUTIONS = True
 try:
-    from plone.distribution.api import site
     from Products.CMFPlone.factory import _DEFAULT_PROFILE
     from Products.CMFPlone.factory import addPloneSite
 except ImportError:
@@ -87,7 +85,8 @@ def runProfiles(plone, profiles):
 
 def quickinstall(plone, products):
     logger.warn(
-        "Installing products by name is no longer supported in Plone 6. Use profiles instead.")
+        "Installing products by name is no longer supported in Plone 6. "
+        "Use profiles instead.")
     qit = plone.portal_quickinstaller
     not_installed_ids = [
         x['id'] for x in qit.listInstallableProducts(skipInstalled=1)]
@@ -265,7 +264,7 @@ def main(app, parser):
             try:
                 app.manage_addProduct['ZODBMountPoint'].manage_addMounts(
                     paths=[container_path], create_mount_points=1)
-            except Exception as e:  # remove Exception as, to keep py2.4 support
+            except Exception as e:
                 msg = (
                     'An error ocurred while trying to add ZODB '
                     'Mount Point %s: %s'
@@ -311,7 +310,8 @@ def main(app, parser):
     if portal and created:
         if products_initial and PLONE6:
             raise zc.buildout.UserError(
-                'Installing (initial) products via quickinstall is deprecated in Plone 6. Use profiles instead.')
+                'Installing (initial) products via quickinstall is '
+                'deprecated in Plone 6. Use profiles instead.')
         if products_initial and not PLONE6:
             quickinstall(portal, products_initial)
         runProfiles(portal, profiles_initial)
@@ -345,7 +345,8 @@ def main(app, parser):
 
     if products and PLONE6:
         raise zc.buildout.UserError(
-            'Installing products via quickinstall is deprecated in Plone 6. Use profiles instead.')
+            'Installing products via quickinstall is deprecated in '
+            'Plone 6. Use profiles instead.')
     if products and not PLONE6:
         quickinstall(portal, products)
     if profiles:
