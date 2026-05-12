@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
 """Recipe plonesite"""
 
 import os
-import pkg_resources
 import subprocess
 import sys
+
+import pkg_resources
 
 
 TRUISMS = [
@@ -23,7 +23,7 @@ def system(c):
         raise SystemError("Failed", c)
 
 
-class Recipe(object):
+class Recipe:
     """zc.buildout recipe"""
 
     def __init__(self, buildout, name, options):
@@ -31,7 +31,7 @@ class Recipe(object):
         options['location'] = os.path.join(
             buildout['buildout']['parts-directory'],
             self.name,
-            )
+        )
         # suppress script generation.
         self.options['scripts'] = ''
         options['bin-directory'] = buildout['buildout']['bin-directory']
@@ -169,7 +169,7 @@ class Recipe(object):
         def createArgList(arg_name, arg_list):
             if arg_list:
                 for arg in arg_list:
-                    args.append("%s=%s" % (arg_name, arg))
+                    args.append(f"{arg_name}={arg}")
         createArgList('--pre-extras', self.pre_extras)
         createArgList('--post-extras', self.post_extras)
 

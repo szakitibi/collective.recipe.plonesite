@@ -1,15 +1,15 @@
-# -*- coding: utf-8 -*-
 """
 This module contains the tool of collective.recipe.plonesite
 """
+import os
+
 from setuptools import find_packages
 from setuptools import setup
-
-import os
 
 
 def read(*rnames):
     return open(os.path.join(os.path.dirname(__file__), *rnames)).read()
+
 
 version = '1.12.1.dev0'
 

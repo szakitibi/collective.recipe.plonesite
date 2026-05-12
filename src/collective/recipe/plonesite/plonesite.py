@@ -1,22 +1,23 @@
-from AccessControl.SecurityManagement import newSecurityManager
-from AccessControl.SecurityManagement import noSecurityManager
-from bisect import bisect
-from datetime import datetime
-from optparse import OptionParser
-from pkg_resources import get_distribution
-from pkg_resources import parse_version
-from six import PY3
-from six import exec_
-from six.moves import filter
-from Testing import makerequest
-from zExceptions.unauthorized import Unauthorized
-
 import base64
 import logging
 import os
+from bisect import bisect
+from datetime import datetime
+from optparse import OptionParser
+
 import pkg_resources
+from pkg_resources import get_distribution
+from pkg_resources import parse_version
+
 import transaction
 import zc.buildout
+from AccessControl.SecurityManagement import newSecurityManager
+from AccessControl.SecurityManagement import noSecurityManager
+from six import PY3
+from six import exec_
+from Testing import makerequest
+from zExceptions.unauthorized import Unauthorized
+
 
 if pkg_resources.parse_version(
     pkg_resources.get_distribution("Products.CMFPlone").version
@@ -50,8 +51,8 @@ except ImportError:
 HAVE_DISTRIBUTIONS = True
 try:
     from plone.distribution.api import site
-    from Products.CMFPlone.factory import addPloneSite
     from Products.CMFPlone.factory import _DEFAULT_PROFILE
+    from Products.CMFPlone.factory import addPloneSite
 except ImportError:
     HAVE_DISTRIBUTIONS = False
 
@@ -80,12 +81,13 @@ def runProfiles(plone, profiles):
         try:
             stool.runAllImportStepsFromProfile(profile,
                                                dependency_strategy='reapply')
-        except:
+        except BaseException:
             stool.runAllImportStepsFromProfile(profile)
 
 
 def quickinstall(plone, products):
-    logger.warn("Installing products by name is no longer supported in Plone 6. Use profiles instead.")
+    logger.warn(
+        "Installing products by name is no longer supported in Plone 6. Use profiles instead.")
     qit = plone.portal_quickinstaller
     not_installed_ids = [
         x['id'] for x in qit.listInstallableProducts(skipInstalled=1)]
@@ -238,6 +240,7 @@ def main(app, parser):
 
     try:
         from zope.globalrequest import setRequest
+
         # support plone.subrequest
         app.REQUEST['PARENTS'] = [app]
         setRequest(app.REQUEST)
@@ -286,16 +289,12 @@ def main(app, parser):
 
     if use_vhm:
         logger.info("******* UPDATING VHM INFORMATION ********")
-        vhm_string = "/VirtualHostBase/%s/%s:%s/%s/VirtualHostRoot" % (
+        vhm_string = "/VirtualHostBase/{}/{}:{}/{}/VirtualHostRoot".format(
             protocol, host, port, site_id)
         portal.REQUEST['PARENTS'] = [app]
         try:
-            if PY3:
-                portal.REQUEST._auth = b'Basic ' + base64.b64encode(
-                    ('%s:%s' % (admin_user, admin_password)).encode())
-            else:
-                portal.REQUEST._auth = 'Basic %s' % base64.encodestring(
-                    '%s:%s' % (admin_user, admin_password))
+            portal.REQUEST._auth = b'Basic ' + base64.b64encode(
+                (f'{admin_user}:{admin_password}').encode())
             traverse = portal.REQUEST.traverse
             traverse(vhm_string)
             newSecurityManager(None, user)
@@ -311,7 +310,8 @@ def main(app, parser):
 
     if portal and created:
         if products_initial and PLONE6:
-            raise zc.buildout.UserError('Installing (initial) products via quickinstall is deprecated in Plone 6. Use profiles instead.')
+            raise zc.buildout.UserError(
+                'Installing (initial) products via quickinstall is deprecated in Plone 6. Use profiles instead.')
         if products_initial and not PLONE6:
             quickinstall(portal, products_initial)
         runProfiles(portal, profiles_initial)
@@ -320,10 +320,13 @@ def main(app, parser):
     def runExtras(portal, script_path):
         print(PY3)
         if os.path.exists(script_path):
-            if PY3:
-                exec_(compile(open(script_path, "rb").read(), script_path, 'exec'))
-            else:
-                execfile(script_path)
+            exec(
+                compile(
+                    open(
+                        script_path,
+                        "rb").read(),
+                    script_path,
+                    'exec'))
         else:
             msg = 'The path to the extras script does not exist: %s'
             raise zc.buildout.UserError(msg % script_path)
@@ -341,7 +344,8 @@ def main(app, parser):
             upgrade_all_profiles=options.upgrade_all_profiles)
 
     if products and PLONE6:
-        raise zc.buildout.UserError('Installing products via quickinstall is deprecated in Plone 6. Use profiles instead.')
+        raise zc.buildout.UserError(
+            'Installing products via quickinstall is deprecated in Plone 6. Use profiles instead.')
     if products and not PLONE6:
         quickinstall(portal, products)
     if profiles:
@@ -353,6 +357,7 @@ def main(app, parser):
     # commit the transaction
     transaction.commit()
     noSecurityManager()
+
 
 if __name__ == '__main__':
     now_str = datetime.now().strftime('%Y-%m-%d-%H%M%S')
