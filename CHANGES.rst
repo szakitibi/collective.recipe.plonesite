@@ -3,8 +3,11 @@
 - Support only Python 3.10+ and Plone 6.1+ with plone.distribution.
   [pbauer, szakitibi]
 
-- Removed the ``products`` and ``products-initial`` options.                                   
-- Modernized codebase: move into ``src/``, PEP 420 native namespace, configure with ``zope.meta``.
+- Removed the ``products`` and ``products-initial`` options.
+  [szakitibi]
+
+- Modernized codebase: move into ``src/``, PEP 420 native namespace,
+  configure with ``zope.meta``, switch to unit tests, and more.
   [szakitibi]
 
 1.12.0 (2021-03-06)

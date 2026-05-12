@@ -15,23 +15,21 @@ version = '2.0.0.dev0'
 
 long_description = (
     f"{read('README.rst')}\n"
-    "Detailed Documentation\n"
-    "**********************\n"
-    f"\n{read('src', 'collective', 'recipe', 'plonesite', 'README.rst')}\n"
     "Contributors\n"
     "************\n"
     f"\n{read('CONTRIBUTORS.rst')}\n"
     "Change history\n"
     "**************\n"
     f"\n{read('CHANGES.rst')}\n"
-    "Download\n"
-    "********\n"
 )
 
 entry_point = 'collective.recipe.plonesite:Recipe'
 entry_points = {"zc.buildout": [f"default = {entry_point}"]}
 
-tests_require = ['zope.testing', 'zc.buildout']
+tests_require = [
+    'zc.buildout[test]',
+    'zope.testrunner',
+]
 
 setup(
     name='collective.recipe.plonesite',
@@ -53,6 +51,7 @@ setup(
         'Programming Language :: Python :: 3.11',
         'Programming Language :: Python :: 3.12',
         'Programming Language :: Python :: 3.13',
+        'Programming Language :: Python :: 3.14',
         'Topic :: Software Development :: Build Tools',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
@@ -72,9 +71,8 @@ setup(
     ],
     tests_require=tests_require,
     extras_require=dict(
-        tests=tests_require,
+        test=tests_require,
         upgrade=['collective.upgrade>=1.0rc1'],
     ),
-    test_suite='collective.recipe.plonesite.tests.test_docs.test_suite',
     entry_points=entry_points,
 )
