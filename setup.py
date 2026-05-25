@@ -14,17 +14,16 @@ long_description = '\n\n'.join(
 )
 
 entry_point = 'collective.recipe.plonesite:Recipe'
-entry_points = {"zc.buildout": [f"default = {entry_point}"]}
-
-tests_require = [
-    'zc.buildout[test]',
-    'zope.testrunner',
-]
+entry_points = {
+    'zc.buildout': [
+        f'default = {entry_point}',
+    ]
+}
 
 setup(
     name='collective.recipe.plonesite',
     version=version,
-    description="A buildout recipe to create and update a plone site",
+    description='A buildout recipe to create and update a plone site',
     long_description=long_description,
     long_description_content_type='text/x-rst',
     classifiers=[
@@ -58,7 +57,10 @@ setup(
         'zc.buildout',
     ],
     extras_require=dict(
-        test=tests_require,
+        test=[
+            'zc.buildout[test]',
+            'zope.testrunner',
+        ],
         upgrade=['collective.upgrade>=1.0rc1'],
     ),
     entry_points=entry_points,
