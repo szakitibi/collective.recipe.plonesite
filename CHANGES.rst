@@ -1,5 +1,6 @@
-2.0.0 (unreleased)                                                                                             
-==================                                                                                             
+2.0.0 (unreleased)
+==================
+
 - Support only Python 3.10+ and Plone 6.1+ with plone.distribution.
   [pbauer, szakitibi]
 
