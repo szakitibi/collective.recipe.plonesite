@@ -1,3 +1,6 @@
+Contributors
+************
+
 - Clayton Parker [claytron], Author
 - Andrew Burkhalter [andrewb]
 - JeanMichel FRANCOIS [toutpt]

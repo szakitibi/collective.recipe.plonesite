@@ -6,20 +6,11 @@ from pathlib import Path
 from setuptools import setup
 
 
-def read(*rnames):
-    return Path(__file__).parent.joinpath(*rnames).read_text(encoding="utf-8")
-
-
 version = '2.0.0.dev0'
 
-long_description = (
-    f"{read('README.rst')}\n"
-    "Contributors\n"
-    "************\n"
-    f"\n{read('CONTRIBUTORS.rst')}\n"
-    "Change history\n"
-    "**************\n"
-    f"\n{read('CHANGES.rst')}\n"
+long_description = '\n\n'.join(
+    Path(filename).read_text(encoding='utf-8')
+    for filename in ('README.rst', 'CONTRIBUTORS.rst', 'CHANGES.rst')
 )
 
 entry_point = 'collective.recipe.plonesite:Recipe'
