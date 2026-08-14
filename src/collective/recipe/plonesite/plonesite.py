@@ -3,6 +3,8 @@ import base64
 import logging
 from bisect import bisect
 from datetime import datetime
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import distribution
 from pathlib import Path
 
 import transaction
@@ -21,8 +23,47 @@ try:
 except ImportError:
     upgrade = None
 
+try:
+    distribution('plone.classicui')
+    HAS_CLASSIC = True
+except PackageNotFoundError:
+    HAS_CLASSIC = False
+
+try:
+    distribution('plone.volto')
+    HAS_VOLTO = True
+except PackageNotFoundError:
+    HAS_VOLTO = False
+
 
 logger = logging.getLogger('collective.recipe.plonesite')
+
+
+def getDistributionName(override=''):
+    """Pick the plone.distribution to create the site with.
+
+    ``plone.distribution`` is a core add-on, so it ships with Plone but is
+    not a dependency of Products.CMFPlone.  Passing a distribution name to
+    ``addPloneSite`` makes it import ``plone.distribution``, so only do that
+    when a distribution package is actually installed.  Returning ``None``
+    makes ``addPloneSite`` fall back to creating a bare site.
+
+    ``override`` is the ``distribution`` buildout option: a distribution name
+    to use verbatim, or ``none`` to skip distributions entirely.  Policy
+    packages that run their own profile usually want ``none``, because the
+    ``Plone`` metapackage pulls in both distribution packages and would
+    otherwise always select ``classic``.
+    """
+    override = override.strip()
+    if override:
+        if override.lower() == 'none':
+            return None
+        return override
+    if HAS_CLASSIC:
+        return "classic"
+    if HAS_VOLTO:
+        return "volto"
+    return None
 
 
 # the madness with the comma is a result of product names with spaces
@@ -44,7 +85,12 @@ def runProfiles(plone, profiles):
             stool.runAllImportStepsFromProfile(profile)
 
 
-def create(container, site_id, site_replace, default_language):
+def create(
+        container,
+        site_id,
+        site_replace,
+        default_language,
+        distribution=''):
     oids = container.objectIds()
     if site_id in oids:
         if site_replace:
@@ -58,12 +104,14 @@ def create(container, site_id, site_replace, default_language):
             )
             return getattr(container, site_id), False
 
+    distribution_name = getDistributionName(distribution)
+    logger.info("Creating Plone Site with distribution: %s", distribution_name)
     addPloneSite(
         container,
         site_id,
         title="Plone",
         profile_id=_DEFAULT_PROFILE,
-        distribution_name="classic",
+        distribution_name=distribution_name,
         setup_content=False,
         default_language=default_language,
         portal_timezone="UTC",
@@ -86,6 +134,7 @@ def main(app, parser):
     pre_extras = options.pre_extras
     container_path = options.container_path
     default_language = options.default_language
+    distribution = options.distribution
     host = options.vhm_host
     use_vhm = options.use_vhm == 'True'
     add_mountpoint = options.add_mountpoint == 'True'
@@ -180,7 +229,7 @@ def main(app, parser):
     container = app.unrestrictedTraverse(container_path)
     # create the plone site if it doesn't exist
     portal, created = create(
-        container, site_id, site_replace, default_language
+        container, site_id, site_replace, default_language, distribution
     )
     # set the site so that the component architecture will work
     # properly
@@ -264,6 +313,9 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "-l", "--default-language", dest="default_language", default="en",
+    )
+    parser.add_argument(
+        "-d", "--distribution", dest="distribution", default="",
     )
     parser.add_argument(
         "-u", "--admin-user", dest="admin_user", default="admin",

@@ -51,6 +51,7 @@ class Recipe:
         self.container_path = options.get('container-path', '/')
         self.site_replace = options.get('site-replace', '').lower() in TRUISMS
         self.default_language = options.get('default-language', 'en')
+        self.distribution = options.get('distribution', '').strip()
         self.admin_user = options.get('admin-user', 'admin')
         self.admin_password = options.get('admin-password', '')
 
@@ -167,6 +168,9 @@ class Recipe:
         # only pass the site replace option if it's True
         if self.site_replace:
             args.append("--site-replace")
+        # leave the distribution auto-detection alone unless configured
+        if self.distribution:
+            args.append(f"--distribution={self.distribution}")
         args.extend([
             f"--admin-user={self.admin_user}",
             f"--admin-password={self.admin_password}",

@@ -10,6 +10,14 @@ buildout run. It runs GenericSetup profiles on creation and on every
 buildout run. It is assumed that the install methods, setuphandlers,
 upgrade steps, and other recipes will handle the rest of the work.
 
+By default the site is created with a `plone.distribution
+<https://github.com/plone/plone.distribution>`_ distribution when one is
+available: ``classic`` if ``plone.classicui`` is installed, otherwise
+``volto`` if ``plone.volto`` is installed. ``plone.distribution`` is a core
+add-on rather than a dependency of ``Products.CMFPlone``, so when neither
+package is present a plain Plone site is created instead. Use the
+``distribution`` option to override that choice.
+
 .. contents::
 
 - Code repository: https://github.com/collective/collective.recipe.plonesite
@@ -50,6 +58,30 @@ container-path
 default-language
     The default language of the Plone site.
     Default: ``en``
+
+distribution
+    The name of the ``plone.distribution`` distribution to create the site
+    with. The named distribution has to be registered, otherwise the site
+    creation fails.
+
+    The `Plone
+    <https://github.com/plone/Plone/blob/6.2.1/setup.cfg#L43-L54>`_ package
+    requires both ``plone.classicui`` and ``plone.volto``, thus auto-detection
+    always picks ``classic`` and applies its base profiles first. This does not
+    apply to a bare ``Products.CMFPlone`` install.
+
+    Set it to ``none`` to create a plain Plone site without using
+    ``plone.distribution`` at all. E.g. policies not shipping a distribution
+    should::
+
+        [plonesite]
+        recipe = collective.recipe.plonesite
+        site-id = mysite
+        distribution = none
+        profiles-initial = my.policy:default
+
+    Default: not set, the distribution is auto-detected, see the introduction
+    above.
 
 use-sudo
     Run the task under a different user, as specified in the

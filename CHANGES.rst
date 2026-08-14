@@ -10,6 +10,14 @@ Changelog
 - Removed the ``products`` and ``products-initial`` options.
   [szakitibi]
 
+- Only create the site with a distribution when ``plone.classicui`` or
+  ``plone.volto`` is installed, so ``plone.distribution`` is not required.
+  [szakitibi]
+
+- Added the ``distribution`` option to choose the distribution explicitly,
+  or to skip distributions entirely with ``distribution = none``.
+  [szakitibi]
+
 - Modernized codebase: move into ``src/``, PEP 420 native namespace,
   configure with ``zope.meta``, switch to unit tests, and more.
   [szakitibi]
